@@ -1,0 +1,128 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  aws-update-navigator
+
+  Sample SAM Template for aws-update-navigator
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Architectures:
+    - x86_64
+    LoggingConfig:
+      LogFormat: JSON
+      ApplicationLogLevel: INFO
+
+Resources:
+  SlackAppFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      CodeUri: slack_app/
+      Handler: app.lambda_handler
+      MemorySize: 512
+      Timeout: 180
+      FunctionUrlConfig:
+        AuthType: NONE
+      Environment:
+        Variables:
+          BEDROCK_AGENT_ID: 'dummy'
+          BEDROCK_AGENT_ALIAS_ID: 'dummy'
+          SLACK_BOT_TOKEN: 'dummy'
+          SLACK_SIGNING_SECRET: 'dummy'
+      Layers:
+        - !Ref SlackAppLayer
+      Role: !GetAtt SlackAppFunctionRole.Arn
+  
+  SlackAppFunctionPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Policy for Slack App Function
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'bedrock:InvokeAgent'
+            Resource: '*'
+          - Effect: Allow
+            Action:
+             - 'lambda:InvokeFunction'
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - 'logs:CreateLogGroup'
+              - 'logs:CreateLogStream'
+              - 'logs:PutLogEvents'
+            Resource: '*'
+              
+  SlackAppFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns: 
+        - !Ref SlackAppFunctionPolicy
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Action: 'sts:AssumeRole'
+            Principal:
+              Service: lambda.amazonaws.com
+  
+  SlackAppFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${SlackAppFunction}'
+      RetentionInDays: 14
+  
+  SlackAppLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      Description: Layer description
+      ContentUri: 'slack_app_layer/'
+      CompatibleRuntimes:
+        - python3.12
+    Metadata:
+      BuildMethod: python3.12
+      BuildArchitecture: x86_64
+  
+  BedrockAgentFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      CodeUri: bedrock_agent/
+      Handler: app.lambda_handler
+      MemorySize: 128
+      Timeout: 10
+      Layers:
+        - !Ref BedrockAgentLayer
+      Policies:
+  
+  BedrockAgentPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref BedrockAgentFunction
+      Principal: 'bedrock.amazonaws.com'
+      SourceArn: !Sub 'arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:agent/REPLACEYOURAGENTID'
+  
+  BedrockAgentLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      Description: Layer description
+      ContentUri: 'bedrock_agent_layer/'
+      CompatibleRuntimes:
+        - python3.12
+    Metadata:
+      BuildMethod: python3.12
+      BuildArchitecture: x86_64
+
+  BedrockAgentFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${BedrockAgentFunction}'
+      RetentionInDays: 14
+
+Outputs:
+  SlackAppFunctionUrl:
+    Description: 'Function URL Endpoint'
+    Value: !GetAtt SlackAppFunctionUrl.FunctionUrl

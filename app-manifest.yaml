@@ -1,0 +1,21 @@
+display_information:
+  name: AWS Update 解説くん
+features:
+  bot_user:
+    display_name: AWS Update Navigator
+    always_online: false
+oauth_config:
+  scopes:
+    bot:
+      - channels:history
+      - chat:write
+      - links:read
+settings:
+  event_subscriptions:
+    request_url: <your_lambda_functions_url>
+    bot_events:
+      - message.channels
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false
+
