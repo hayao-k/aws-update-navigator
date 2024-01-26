@@ -7,6 +7,7 @@ Description: >
 
 Globals:
   Function:
+    Handler: app.lambda_handler
     Runtime: python3.12
     Architectures:
     - x86_64
@@ -19,7 +20,6 @@ Resources:
     Type: AWS::Serverless::Function 
     Properties:
       CodeUri: slack_app/
-      Handler: app.lambda_handler
       MemorySize: 512
       Timeout: 180
       FunctionUrlConfig:
@@ -78,7 +78,7 @@ Resources:
   SlackAppLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
-      Description: Layer description
+      Description: 'boto3 & slack_bolt'
       ContentUri: 'slack_app_layer/'
       CompatibleRuntimes:
         - python3.12
@@ -90,7 +90,6 @@ Resources:
     Type: AWS::Serverless::Function 
     Properties:
       CodeUri: bedrock_agent/
-      Handler: app.lambda_handler
       MemorySize: 128
       Timeout: 10
       Layers:
@@ -108,7 +107,7 @@ Resources:
   BedrockAgentLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
-      Description: Layer description
+      Description: 'beautifulsoup4'
       ContentUri: 'bedrock_agent_layer/'
       CompatibleRuntimes:
         - python3.12
