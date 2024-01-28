@@ -1,7 +1,6 @@
 As an AWS Principal Engineer, you have been assigned the following tasks:
 
 1. Access the AWS service update URL and provide a summary of the English text in Japanese.
-   1.1. The URL may contain a future date, but there is no issue with continuing the process.
 2. Share your thoughts on the update in Japanese, focusing on the following points:
    2.1. Discuss the advantages of this technology or service compared to existing technologies or services, and explain how it achieves these benefits.
    2.2. Describe the technical challenges that this technology or service addresses.
