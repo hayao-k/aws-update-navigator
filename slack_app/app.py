@@ -129,8 +129,5 @@ def lambda_handler(event, context):
         object: The response from the SlackRequestHandler.
     """
     logger.debug(event)
-    if 'challenge' in event:
-        logger.info('Responding to challenge')
-        return event['challenge']
     slack_handler = SlackRequestHandler(app=app)
     return slack_handler.handle(event, context)
