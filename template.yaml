@@ -1,16 +1,26 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: 2010-09-09
 Transform: AWS::Serverless-2016-10-31
 Description: >
   aws-update-navigator
 
   Sample SAM Template for aws-update-navigator
-
+  
+Parameters:
+  pModelId:
+    Type: String
+    Description: The Model ID of the Bedrock Agent.
+    Default: "anthropic.claude-v2:1"
+    AllowedValues: 
+        - "anthropic.claude-v2:1"
+        - "anthropic.claude-v2"
+        - "anthropic.claude-instant-v1"
+    
 Globals:
   Function:
     Handler: app.lambda_handler
     Runtime: python3.12
     Architectures:
-    - x86_64
+     - x86_64
     LoggingConfig:
       LogFormat: JSON
       ApplicationLogLevel: INFO
@@ -19,67 +29,44 @@ Resources:
   SlackAppFunction:
     Type: AWS::Serverless::Function 
     Properties:
-      CodeUri: slack_app/
+      FunctionName: !Sub "${AWS::StackName}-SlackAppFunction"
+      CodeUri: "slack_app/"
       MemorySize: 512
       Timeout: 180
       FunctionUrlConfig:
         AuthType: NONE
       Environment:
         Variables:
-          BEDROCK_AGENT_ID: 'dummy'
-          BEDROCK_AGENT_ALIAS_ID: 'dummy'
-          SLACK_BOT_TOKEN: 'dummy'
-          SLACK_SIGNING_SECRET: 'dummy'
+          BEDROCK_AGENT_ID: !Ref BedrockAgent
+          BEDROCK_AGENT_ALIAS_ID: !GetAtt BedrockAgentAlias.AgentAliasId
+          SLACK_BOT_TOKEN: "dummy"
+          SLACK_SIGNING_SECRET: "dummy"
       Layers:
         - !Ref SlackAppLayer
-      Role: !GetAtt SlackAppFunctionRole.Arn
-  
-  SlackAppFunctionPolicy:
-    Type: AWS::IAM::ManagedPolicy
-    Properties:
-      Description: Policy for Slack App Function
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Action:
-              - 'bedrock:InvokeAgent'
-            Resource: '*'
-          - Effect: Allow
-            Action:
-             - 'lambda:InvokeFunction'
-            Resource: '*'
-          - Effect: Allow
-            Action:
-              - 'logs:CreateLogGroup'
-              - 'logs:CreateLogStream'
-              - 'logs:PutLogEvents'
-            Resource: '*'
-              
-  SlackAppFunctionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      ManagedPolicyArns: 
-        - !Ref SlackAppFunctionPolicy
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: 'Allow'
-            Action: 'sts:AssumeRole'
-            Principal:
-              Service: lambda.amazonaws.com
+      Policies:
+        - Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Action:
+                - "bedrock:InvokeAgent"
+              Resource:
+                - !GetAtt BedrockAgentAlias.AgentAliasArn
+            - Effect: Allow
+              Action:
+               - "lambda:InvokeFunction"
+              Resource: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AWS::StackName}-SlackAppFunction"
   
   SlackAppFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub '/aws/lambda/${SlackAppFunction}'
+      LogGroupName: !Sub "/aws/lambda/${SlackAppFunction}"
       RetentionInDays: 14
   
   SlackAppLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
-      Description: 'boto3 & slack_bolt'
-      ContentUri: 'slack_app_layer/'
+      Description: "boto3 & slack_bolt"
+      ContentUri: "slack_app_layer/"
       CompatibleRuntimes:
         - python3.12
     Metadata:
@@ -89,26 +76,26 @@ Resources:
   BedrockAgentFunction:
     Type: AWS::Serverless::Function 
     Properties:
-      CodeUri: bedrock_agent/
+      FunctionName: !Sub "${AWS::StackName}-BedrockAgentFunction"
+      CodeUri: "bedrock_agent/"
       MemorySize: 128
       Timeout: 10
       Layers:
-        - !Ref BedrockAgentLayer
-      Policies:
+        - !Ref BedrockAgentFunctionLayer
   
-  BedrockAgentPermission:
+  BedrockAgentFunctionPermission:
     Type: AWS::Lambda::Permission
     Properties:
-      Action: 'lambda:InvokeFunction'
+      Action: "lambda:InvokeFunction"
       FunctionName: !Ref BedrockAgentFunction
-      Principal: 'bedrock.amazonaws.com'
-      SourceArn: !Sub 'arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:agent/REPLACEYOURAGENTID'
+      Principal: "bedrock.amazonaws.com"
+      SourceArn: !GetAtt BedrockAgent.AgentArn
   
-  BedrockAgentLayer:
+  BedrockAgentFunctionLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
-      Description: 'beautifulsoup4'
-      ContentUri: 'bedrock_agent_layer/'
+      Description: "beautifulsoup4"
+      ContentUri: "bedrock_agent_layer/"
       CompatibleRuntimes:
         - python3.12
     Metadata:
@@ -118,10 +105,118 @@ Resources:
   BedrockAgentFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub '/aws/lambda/${BedrockAgentFunction}'
+      LogGroupName: !Sub "/aws/lambda/${BedrockAgentFunction}"
       RetentionInDays: 14
+
+  BedrockAgentRolePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: "Policy for Bedrock Agent"
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - "bedrock:InvokeModel"
+            Resource:
+              - !Sub "arn:aws:bedrock:${AWS::Region}::foundation-model/${pModelId}"
+
+  BedrockAgentRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "AmazonBedrockExecutionRoleForAgents_${AWS::StackName}"
+      ManagedPolicyArns: 
+        - !Ref BedrockAgentRolePolicy
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: "Allow"
+            Action: "sts:AssumeRole"
+            Principal:
+              Service: "bedrock.amazonaws.com"
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref "AWS::AccountId"
+              ArnLike:
+                aws:SourceArn: !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:agent/*"
+              
+  BedrockAgent:
+    Type: AWS::Bedrock::Agent
+    Properties:
+      AgentName: !Ref "AWS::StackName"
+      AgentResourceRoleArn: !GetAtt BedrockAgentRole.Arn
+      AutoPrepare: true
+      FoundationModel: !Ref pModelId
+      IdleSessionTTLInSeconds: 110
+      ActionGroups:
+        - ActionGroupName: "explainLatestAWSUpdate"
+          ActionGroupExecutor:
+            Lambda: !GetAtt BedrockAgentFunction.Arn
+          ApiSchema:
+            Payload: |
+              openapi: 3.0.0
+              info:
+                title: Summarize an article API
+                version: 1.0.0
+                description: APIs for summarize an article from URL.
+              paths:
+                /summarize_article:
+                  post:
+                    summary: APIs for summarize an article from URL.
+                    description: The URL should be determined based on the instructions.
+                    operationId: summarize
+                    requestBody:
+                      required: true
+                      content:
+                        application/json:
+                          schema:
+                            type: object
+                            properties:
+                              url:
+                                type: string
+                                description: url of article
+                            required:
+                             - url
+                    responses:
+                      '200':
+                        description: Article summarized.
+                        content:
+                          application/json:
+                            schema:
+                              type: object
+                              properties:
+                                article:
+                                  type: string
+                                  description: Summarized article
+      Instruction: |
+        As an AWS Principal Engineer, you have been assigned the following tasks:
+      
+        1. Access the AWS service update URL and provide a summary of the English text in Japanese. There is no need to categorize the URL content.
+        2. Share your thoughts on the update in Japanese, focusing on the following points:
+          2.1. Discuss the advantages of this technology or service compared to existing technologies or services, and explain how it achieves these benefits.
+          2.2. Describe the technical challenges that this technology or service addresses.
+        3. Respond in json format.
+
+        Here’s an example:
+        summary, advantages, and addresses are all required fields
+        <example>
+        {
+          "summary": "Amazon EC2シリアルコンソールがすべてのAWSローカルゾーンで利用できるようになりました。",
+          "advantages": "インスタンスの起動やネットワークの接続の問題をトラブルシューティングするために、シリアルポートへのテキストベースのアクセスを簡単かつ安全に提供します。これにより、SSHやRDPで接続できない場合でも、対話形式でコマンドを実行して構成の問題を解決できます。",
+          "addresses": "これまでも管理コンソールやAPIを通じてシリアルコンソール出力にアクセスできましたが、それらは主に診断のためで、対話式のトラブルシューティングには適していませんでした。この新機能により、こうした制限がなくなり、はるかに使いやすくなります。"
+        }
+        </example>
+
+        If the tool did not return a summary, reply "Could not retrieve.".
+        
+  BedrockAgentAlias:
+    DependsOn: BedrockAgent
+    Type: AWS::Bedrock::AgentAlias
+    Properties:
+      AgentAliasName: "Default"
+      AgentId: !Ref BedrockAgent
 
 Outputs:
   SlackAppFunctionUrl:
-    Description: 'Function URL Endpoint'
+    Description: "Function URL Endpoint"
     Value: !GetAtt SlackAppFunctionUrl.FunctionUrl
