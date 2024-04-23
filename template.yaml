@@ -9,8 +9,10 @@ Parameters:
   pModelId:
     Type: String
     Description: The Model ID of the Bedrock Agent.
-    Default: "anthropic.claude-v2:1"
+    Default: "anthropic.claude-3-sonnet-20240229-v1:0"
     AllowedValues: 
+        - "anthropic.claude-3-sonnet-20240229-v1:0"
+        - "anthropic.claude-3-haiku-20240307-v1:0"
         - "anthropic.claude-v2:1"
         - "anthropic.claude-v2"
         - "anthropic.claude-instant-v1"
@@ -147,7 +149,7 @@ Resources:
       AgentResourceRoleArn: !GetAtt BedrockAgentRole.Arn
       AutoPrepare: true
       FoundationModel: !Ref pModelId
-      IdleSessionTTLInSeconds: 110
+      IdleSessionTTLInSeconds: 120
       ActionGroups:
         - ActionGroupName: "explainLatestAWSUpdate"
           ActionGroupExecutor:
