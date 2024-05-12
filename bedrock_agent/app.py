@@ -53,32 +53,29 @@ def lambda_handler(event, context):
         dict: A dictionary containing the message version and the response data.
     """
     logger.debug(event)
-    api_path = event['apiPath']
+    function = event['function']
     url = ''
     body = {}
-    http_status_code = 200
 
-    if api_path == '/summarize_article':
-        properties = event['requestBody']['content']['application/json']['properties']
-        url = next((item['value'] for item in properties if item['name'] == 'url'), '')
+    if function == 'summarize_article':
+        url = next((item['value'] for item in event['parameters'] if item['name'] == 'url'), '')
         body = {'body': extract_text_from_url(url)}
     else:
-        body = {'error': 'Invalid API path'}
-        logger.error('Invalid API path: %s', api_path)
-        http_status_code = 400
+        body = {'error': 'Invalid function'}
+        logger.error('Invalid function name: %s', function)
 
     response_body = {
-        'application/json': {
+        'TEXT': {
             'body': json.dumps(body, ensure_ascii=False)
         }
     }
 
     action_response = {
         'actionGroup': event['actionGroup'],
-        'apiPath': api_path,
-        'httpMethod': event['httpMethod'],
-        'httpStatusCode': http_status_code,
-        'responseBody': response_body,
+        'function': function,
+        'functionResponse': {
+            'responseBody': response_body
+        }
     }
 
     return {

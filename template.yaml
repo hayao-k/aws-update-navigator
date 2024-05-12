@@ -11,11 +11,13 @@ Parameters:
     Description: The Model ID of the Bedrock Agent.
     Default: "anthropic.claude-3-sonnet-20240229-v1:0"
     AllowedValues: 
+        - "anthropic.claude-3-opus-20240229-v1:0"
         - "anthropic.claude-3-sonnet-20240229-v1:0"
         - "anthropic.claude-3-haiku-20240307-v1:0"
         - "anthropic.claude-v2:1"
         - "anthropic.claude-v2"
         - "anthropic.claude-instant-v1"
+        - "amazon.titan-text-premier-v1:0"
     
 Globals:
   Function:
@@ -154,42 +156,15 @@ Resources:
         - ActionGroupName: "explainLatestAWSUpdate"
           ActionGroupExecutor:
             Lambda: !GetAtt BedrockAgentFunction.Arn
-          ApiSchema:
-            Payload: |
-              openapi: 3.0.0
-              info:
-                title: Summarize an article API
-                version: 1.0.0
-                description: APIs for summarize an article from URL.
-              paths:
-                /summarize_article:
-                  post:
-                    summary: APIs for summarize an article from URL.
-                    description: The URL should be determined based on the instructions.
-                    operationId: summarize
-                    requestBody:
-                      required: true
-                      content:
-                        application/json:
-                          schema:
-                            type: object
-                            properties:
-                              url:
-                                type: string
-                                description: url of article
-                            required:
-                             - url
-                    responses:
-                      '200':
-                        description: Article summarized.
-                        content:
-                          application/json:
-                            schema:
-                              type: object
-                              properties:
-                                article:
-                                  type: string
-                                  description: Summarized article
+          FunctionSchema:
+            Functions:
+              - Name: "summarize_article"
+                Description: "summarize an article from url."
+                Parameters: 
+                  url:
+                    Description: "url of article"
+                    Required: false
+                    Type: "string"
       Instruction: |
         As an AWS Principal Engineer, you have been assigned the following tasks:
       
