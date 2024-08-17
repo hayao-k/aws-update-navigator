@@ -16,7 +16,7 @@ from slack_bolt.adapter.aws_lambda import SlackRequestHandler
 logger = getLogger()
 
 URL_PATTERN = re.compile(
-    r'https://aws\.amazon\.com/about-aws/whats-new/(?:\d{4})/(?:\d{2})/(?:[\w-]+)/'
+    r'[\<]?https://aws\.amazon\.com/about-aws/whats-new/(?:\d{4})/(?:\d{2})/(?:[\w-]+)/?[\>]?'
 )
 
 app = App(
